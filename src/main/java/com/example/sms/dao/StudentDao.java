@@ -2,6 +2,7 @@ package com.example.sms.dao;
 
 import com.example.sms.db.Database;
 import com.example.sms.model.Student;
+import com.example.sms.util.StudentValidation;
 import java.sql.*;
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -51,6 +52,7 @@ public class StudentDao {
         return query("SELECT * FROM students WHERE marks BETWEEN ? AND ? ORDER BY marks DESC", p->{p.setBigDecimal(1,low);p.setBigDecimal(2,high);});
     }
     public boolean update(int id, String name, int age, String email, String phone, String dept, int year, BigDecimal marks, String status) throws SQLException {
+        email = StudentValidation.normalizeEmail(email);
         String q="UPDATE students SET student_name=?,age=?,email=?,phone_number=?,department=?,student_year=?,marks=?,status=? WHERE student_id=?";
         try(Connection c=Database.getConnection();PreparedStatement p=c.prepareStatement(q)){
             p.setString(1,name);p.setInt(2,age);p.setString(3,email);p.setString(4,phone);p.setString(5,dept);
