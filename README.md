@@ -62,7 +62,7 @@ Use `git commit --amend` to correct the latest local commit before it is shared.
 ## Repository workflow evidence
 - The complete source, SQL scripts, tests and Maven configuration are tracked in this repository.
 - `target/` and local credentials are excluded by `.gitignore`.
-- Feature branches are created from `develop` and merged with pull-request-style merge commits.
+- Feature branches are created from `develop`, reviewed, and merged with pull-request-style merge commits.
 - A deliberate README conflict was resolved while integrating `feature/document-workflow`.
 - `hotfix/fix-null-email` is merged into both `main` and `develop`.
 - Release tag: `v1.0.0`.
