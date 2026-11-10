@@ -14,4 +14,6 @@ class StudentValidationTest {
  @Test void rejectsBlankEmail(){assertFalse(StudentValidation.isValidEmail("  "));}
  @Test void validatesYearBoundaries(){assertTrue(StudentValidation.isValidYear(1));assertTrue(StudentValidation.isValidYear(8));assertFalse(StudentValidation.isValidYear(0));assertFalse(StudentValidation.isValidYear(9));}
  @Test void rejectsNullMarks(){assertFalse(StudentValidation.isValidMarks(null));}
+ @Test void normalizesDepartment(){assertEquals("CSE",StudentValidation.normalizeDepartment(" cse "));}
+ @Test void rejectsBlankDepartment(){assertThrows(IllegalArgumentException.class,()->StudentValidation.normalizeDepartment("  "));}
 }

@@ -2,8 +2,11 @@ package com.example.sms.dao;
 
 import com.example.sms.db.Database;
 import java.sql.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class EnrollmentDao {
+    private static final Logger log = LoggerFactory.getLogger(EnrollmentDao.class);
     public void enroll(int studentId, int courseId) throws SQLException {
         try(Connection c=Database.getConnection()){
             boolean original=c.getAutoCommit(); c.setAutoCommit(false);
@@ -18,10 +21,13 @@ public class EnrollmentDao {
                     p.setInt(1,studentId);p.setInt(2,courseId);p.executeUpdate();
                 }
                 c.commit(); System.out.println("Enrollment saved.");
-            } catch(SQLException ex) {
+            } catch(SQLException | RuntimeException ex) {
                 try { c.rollback(); } catch(SQLException rollbackEx) { ex.addSuppressed(rollbackEx); }
                 throw ex;
-            } finally { c.setAutoCommit(original); }
+            } finally {
+                try { c.setAutoCommit(original); }
+                catch(SQLException resetEx) { log.warn("Could not restore auto-commit after enrollment", resetEx); }
+            }
         }
     }
     public boolean remove(int studentId,int courseId) throws SQLException {

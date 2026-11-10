@@ -13,4 +13,9 @@ public final class StudentValidation {
     public static boolean isValidYear(int year) { return year >= 1 && year <= 8; }
     public static boolean isValidMarks(BigDecimal marks) { return marks != null && marks.compareTo(BigDecimal.ZERO) >= 0 && marks.compareTo(new BigDecimal("100")) <= 0; }
     public static String normalizeEmail(String email) { if (!isValidEmail(email)) throw new IllegalArgumentException("A valid, non-null email is required."); return email.trim().toLowerCase(java.util.Locale.ROOT); }
+    public static String normalizeDepartment(String department) {
+        if (department == null || department.isBlank()) throw new IllegalArgumentException("Department is required.");
+        return department.trim().toUpperCase(java.util.Locale.ROOT);
+    }
+    public static boolean isValidPhone(String phone) { return phone != null && !phone.isBlank(); }
 }
