@@ -3,6 +3,8 @@ package com.example.sms.dao;
 import com.example.sms.db.Database;
 import com.example.sms.model.Student;
 import com.example.sms.util.StudentValidation;
+import com.example.sms.model.Status;
+import java.time.LocalDate;
 import java.sql.*;
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -14,15 +16,16 @@ public class StudentDao {
     private Student map(ResultSet r) throws SQLException {
         return new Student(r.getInt("student_id"), r.getString("student_name"), r.getInt("age"),
             r.getString("email"), r.getString("phone_number"), r.getString("department"),
-            r.getInt("student_year"), r.getDate("admission_date"), r.getBigDecimal("marks"), r.getString("status"));
+            r.getInt("student_year"), r.getObject("admission_date", LocalDate.class), r.getBigDecimal("marks"),
+            Status.parse(r.getString("status")));
     }
     public void add(Student s) throws SQLException {
         String q = "INSERT INTO students(student_id,student_name,age,email,phone_number,department,student_year,admission_date,marks,status) VALUES(?,?,?,?,?,?,?,?,?,?)";
         try (Connection c=Database.getConnection(); PreparedStatement p=c.prepareStatement(q)) {
             p.setInt(1,s.id()); p.setString(2,s.name()); p.setInt(3,s.age()); p.setString(4,s.email());
-            p.setString(5,s.phone()); p.setString(6,s.department()); p.setInt(7,s.year());
-            p.setDate(8,s.admissionDate()==null?new Date(System.currentTimeMillis()):s.admissionDate());
-            p.setBigDecimal(9,s.marks()); p.setString(10,s.status()); p.executeUpdate();
+            p.setString(5,s.phone()); p.setString(6,StudentValidation.normalizeDepartment(s.department())); p.setInt(7,s.year());
+            p.setObject(8,s.admissionDate()==null?LocalDate.now():s.admissionDate());
+            p.setBigDecimal(9,s.marks()); p.setString(10,s.status().name()); p.executeUpdate();
         }
     }
     public List<Student> all() throws SQLException { return query("SELECT * FROM students ORDER BY student_id", null); }
@@ -31,16 +34,16 @@ public class StudentDao {
         return xs.stream().findFirst();
     }
     public List<Student> byName(String name) throws SQLException {
-        return query("SELECT * FROM students WHERE student_name ILIKE ? ORDER BY student_name", p->p.setString(1,"%"+name+"%"));
+        return query("SELECT * FROM students WHERE student_name ILIKE ? ESCAPE '\\' ORDER BY student_name", p->p.setString(1,"%"+escapeLike(name)+"%"));
     }
     public List<Student> byCourseName(String courseName) throws SQLException {
         if (courseName == null || courseName.isBlank()) return Collections.emptyList();
         return query("SELECT DISTINCT s.* FROM students s JOIN enrollments e ON e.student_id=s.student_id JOIN courses c ON c.course_id=e.course_id WHERE c.course_name ILIKE ? ORDER BY s.student_name",
-            p -> p.setString(1, "%" + courseName.trim() + "%"));
+            p -> p.setString(1, "%" + escapeLike(courseName.trim()) + "%"));
     }
     public List<Student> byDepartment(String dept) throws SQLException {
         if (dept == null || dept.isBlank()) return Collections.emptyList();
-        return query("SELECT * FROM students WHERE department ILIKE ? ORDER BY student_name", p->p.setString(1, "%" + dept.trim() + "%"));
+        return query("SELECT * FROM students WHERE department=? ORDER BY student_name", p->p.setString(1, StudentValidation.normalizeDepartment(dept)));
     }
     public List<Student> byYear(int year) throws SQLException {
         return query("SELECT * FROM students WHERE student_year=? ORDER BY student_name", p->p.setInt(1,year));
@@ -51,12 +54,13 @@ public class StudentDao {
     public List<Student> marksRange(BigDecimal low, BigDecimal high) throws SQLException {
         return query("SELECT * FROM students WHERE marks BETWEEN ? AND ? ORDER BY marks DESC", p->{p.setBigDecimal(1,low);p.setBigDecimal(2,high);});
     }
-    public boolean update(int id, String name, int age, String email, String phone, String dept, int year, BigDecimal marks, String status) throws SQLException {
+    public boolean update(int id, String name, int age, String email, String phone, String dept, int year, BigDecimal marks, Status status) throws SQLException {
         email = StudentValidation.normalizeEmail(email);
+        dept = StudentValidation.normalizeDepartment(dept);
         String q="UPDATE students SET student_name=?,age=?,email=?,phone_number=?,department=?,student_year=?,marks=?,status=? WHERE student_id=?";
         try(Connection c=Database.getConnection();PreparedStatement p=c.prepareStatement(q)){
             p.setString(1,name);p.setInt(2,age);p.setString(3,email);p.setString(4,phone);p.setString(5,dept);
-            p.setInt(6,year);p.setBigDecimal(7,marks);p.setString(8,status);p.setInt(9,id);return p.executeUpdate()>0;
+            p.setInt(6,year);p.setBigDecimal(7,marks);p.setString(8,status.name());p.setInt(9,id);return p.executeUpdate()>0;
         }
     }
     public boolean delete(int id) throws SQLException {
@@ -73,6 +77,9 @@ public class StudentDao {
         reportQuery("Student count by department","SELECT department, COUNT(*) AS total FROM students GROUP BY department ORDER BY department");
         reportQuery("Average marks by department","SELECT department, ROUND(AVG(marks),2) AS average FROM students GROUP BY department ORDER BY department");
         reportQuery("Students without courses","SELECT s.student_id,s.student_name FROM students s LEFT JOIN enrollments e ON e.student_id=s.student_id WHERE e.student_id IS NULL ORDER BY s.student_id");
+    }
+    private static String escapeLike(String value) {
+        return value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
     }
     public void reportQuery(String title, String sql) throws SQLException {
         System.out.println("\n-- "+title+" --");

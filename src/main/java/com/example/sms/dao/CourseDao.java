@@ -2,11 +2,12 @@ package com.example.sms.dao;
 
 import com.example.sms.db.Database;
 import java.sql.*;
+import com.example.sms.util.StudentValidation;
 
 public class CourseDao {
     public void add(String name, String department, int credits) throws SQLException {
         try(Connection c=Database.getConnection();PreparedStatement p=c.prepareStatement("INSERT INTO courses(course_name,department,credits) VALUES(?,?,?)")){
-            p.setString(1,name);p.setString(2,department);p.setInt(3,credits);p.executeUpdate();
+            p.setString(1,name.trim());p.setString(2,StudentValidation.normalizeDepartment(department));p.setInt(3,credits);p.executeUpdate();
         }
     }
     public void list() throws SQLException {

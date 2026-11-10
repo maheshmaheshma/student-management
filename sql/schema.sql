@@ -1,3 +1,5 @@
+-- WARNING: this script drops and recreates all application tables.
+-- Run it only against a new database or after taking a backup.
 DROP TABLE IF EXISTS enrollments;
 DROP TABLE IF EXISTS courses;
 DROP TABLE IF EXISTS students;

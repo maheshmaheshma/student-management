@@ -13,7 +13,7 @@ Run the SQL scripts in order:
 psql -U postgres -d student_management -f sql/schema.sql
 psql -U postgres -d student_management -f sql/sample_data.sql
 ```
-Configure local connection settings using environment variables:
+Configure local connection settings using environment variables. `DB_PASSWORD` is required; the application fails fast when it is missing:
 ```bash
 export DB_URL='jdbc:postgresql://localhost:5432/student_management'
 export DB_USER='postgres'
@@ -35,10 +35,10 @@ The Shade plugin creates the runnable fat JAR at `target/student-management-1.0.
 
 ## Phase 7 features
 - Maven coordinates: `com.yourname.sms:student-management:1.0.0-SNAPSHOT`; Java 17 and UTF-8.
-- PostgreSQL JDBC (runtime), JUnit Jupiter (test), SLF4J + Logback (compile), Apache Commons Lang (additional dependency).
+- PostgreSQL JDBC (runtime), JUnit Jupiter (test), and SLF4J + Logback (compile).
 - Student search by course name (menu option 23).
 - Centralized validation rejects null/malformed email addresses and normalizes accepted emails.
-- JUnit tests cover email, name, age and marks validation.
+- JUnit tests cover email, name, age, marks, department and course validation. Database integration tests require a configured PostgreSQL instance and are intentionally kept separate from the fast unit-test suite.
 
 ## Git branching strategy
 - `main`: stable, release-ready code; no direct commits.
@@ -66,6 +66,8 @@ Use `git commit --amend` to correct the latest local commit before it is shared.
 - A deliberate README conflict was resolved while integrating `feature/document-workflow`.
 - `hotfix/fix-null-email` is merged into both `main` and `develop`.
 - Release tag: `v1.0.0`.
+- `sql/schema.sql` drops and recreates the application tables; back up an existing database before running it.
+- The console application uses one short-lived JDBC connection per operation and is intended for single-user use; it is not a connection pool or concurrent server.
 
 GitHub pull requests require the hosted repository, so the local merge commits document the same review boundaries. Push the branches and tag, then open the corresponding GitHub pull requests if remote evidence is required.
 

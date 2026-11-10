@@ -2,7 +2,9 @@ package com.example.sms;
 
 import com.example.sms.dao.*;
 import com.example.sms.model.Student;
+import com.example.sms.model.Status;
 import com.example.sms.util.StudentValidation;
+import com.example.sms.util.CourseValidation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import java.math.BigDecimal;
@@ -23,14 +25,14 @@ public class Main {
         while(true) {
             menu(); int choice=integer("Choice: ");
             try {
-                switch(choice) {
+            switch(choice) {
                     case 1 -> addStudent();
                     case 2 -> students.print(students.all());
                     case 3 -> System.out.println(students.byId(integer("Student ID: ")).orElse(null));
                     case 4 -> students.print(students.byName(input("Name contains: ")));
                     case 5 -> updateStudent();
-                    case 6 -> System.out.println(students.delete(integer("Student ID: "))?"Deleted.":"Student not found.");
-                    case 7 -> courses.add(input("Course name: "),input("Department: "),integer("Credits: "));
+                    case 6 -> deleteStudent();
+                    case 7 -> addCourse();
                     case 8 -> courses.list();
                     case 9 -> enrollments.enroll(integer("Student ID: "),integer("Course ID: "));
                     case 10 -> System.out.println(enrollments.remove(integer("Student ID: "),integer("Course ID: "))?"Enrollment removed.":"Enrollment not found.");
@@ -42,7 +44,7 @@ public class Main {
                     case 16 -> students.print(students.marksRange(decimal("Minimum marks: "),decimal("Maximum marks: ")));
                     case 17 -> students.reports();
                     case 18 -> enrollments.countsByCourse();
-                    case 19 -> students.reportQuery("Sort by marks","SELECT student_id,student_name,marks FROM students ORDER BY marks DESC");
+                    case 19 -> students.reportQuery("Sort by marks","SELECT student_id,student_name,marks FROM students ORDER BY marks DESC NULLS LAST");
                     case 20 -> students.reportQuery("Sort by name","SELECT student_id,student_name FROM students ORDER BY student_name");
                     case 21 -> students.reportQuery("Sort by admission date","SELECT student_id,student_name,admission_date FROM students ORDER BY admission_date DESC");
                     case 22 -> { System.out.println("Goodbye."); return; }
@@ -50,9 +52,12 @@ public class Main {
                     default -> System.out.println("Invalid menu choice.");
                 }
             } catch(SQLException e) {
-                log.error("Database operation failed", e); System.out.println("Database operation failed. Check application logs and database configuration.");
+                log.error("Database operation failed", e);
+                System.out.println("23505".equals(e.getSQLState()) ? "A record with that ID, email, or course name already exists." : "Database operation failed. Check application logs and database configuration.");
             } catch(IllegalArgumentException e) {
                 System.out.println("Invalid input: "+e.getMessage());
+            } catch(RuntimeException e) {
+                log.error("Application operation failed", e); System.out.println(e.getMessage());
             }
         }
     }
@@ -69,20 +74,39 @@ public class Main {
         int id=integer("Student ID: "); String name=input("Name: "); int age=integer("Age: ");
         String email=input("Email: "); String phone=input("Phone: "); String dept=input("Department: ");
         int year=integer("Year: "); Date date=Date.valueOf(input("Admission date (YYYY-MM-DD): "));
-        BigDecimal marks=decimal("Marks (0-100): "); String status=input("Status ACTIVE/INACTIVE/GRADUATED: ").toUpperCase();
-        if(id<=0||!StudentValidation.isValidName(name)||!StudentValidation.isValidAge(age)||!StudentValidation.isValidEmail(email)||phone.isBlank()||dept.isBlank()||!StudentValidation.isValidYear(year)||!StudentValidation.isValidMarks(marks))
+        BigDecimal marks=decimal("Marks (0-100): "); Status status=Status.parse(input("Status ACTIVE/INACTIVE/GRADUATED: "));
+        if(id<=0||!StudentValidation.isValidName(name)||!StudentValidation.isValidAge(age)||!StudentValidation.isValidEmail(email)||!StudentValidation.isValidPhone(phone)||dept.isBlank()||!StudentValidation.isValidYear(year)||!StudentValidation.isValidMarks(marks))
             throw new IllegalArgumentException("Please verify ID, name, age, email, phone, department, year and marks.");
         email = StudentValidation.normalizeEmail(email);
-        students.add(new Student(id,name,age,email,phone,dept,year,date,marks,status)); System.out.println("Student added.");
+        students.add(new Student(id,name.trim(),age,email,phone.trim(),StudentValidation.normalizeDepartment(dept),year,date.toLocalDate(),marks,status)); System.out.println("Student added.");
     }
     private static void updateStudent() throws SQLException {
         int id=integer("Student ID to update: ");
-        String name=input("Name: "); int age=integer("Age: "); String email=StudentValidation.normalizeEmail(input("Email: ")); String phone=input("Phone: "); String department=input("Department: "); int year=integer("Year: "); BigDecimal marks=decimal("Marks: "); String status=input("Status: ").toUpperCase();
-        if (!StudentValidation.isValidName(name) || !StudentValidation.isValidAge(age) || phone.isBlank() || department.isBlank() || !StudentValidation.isValidYear(year) || !StudentValidation.isValidMarks(marks)) throw new IllegalArgumentException("Invalid student details.");
+        Student current=students.byId(id).orElseThrow(() -> new IllegalArgumentException("Student not found."));
+        String name=defaultText("Name", current.name()); int age=integerOrDefault("Age", current.age());
+        String email=StudentValidation.normalizeEmail(defaultText("Email", current.email())); String phone=defaultText("Phone", current.phone());
+        String department=StudentValidation.normalizeDepartment(defaultText("Department", current.department())); int year=integerOrDefault("Year", current.year());
+        BigDecimal marks=decimalOrDefault("Marks", current.marks()); Status status=Status.parse(defaultText("Status", current.status().name()));
+        if (!StudentValidation.isValidName(name) || !StudentValidation.isValidAge(age) || !StudentValidation.isValidPhone(phone) || !StudentValidation.isValidYear(year) || !StudentValidation.isValidMarks(marks)) throw new IllegalArgumentException("Invalid student details.");
         boolean ok=students.update(id,name,age,email,phone,department,year,marks,status);
         System.out.println(ok?"Student updated.":"Student not found.");
     }
-    private static String input(String prompt){System.out.print(prompt);return in.nextLine().trim();}
+    private static void addCourse() throws SQLException {
+        String name=input("Course name: "); String department=StudentValidation.normalizeDepartment(input("Department: ")); int credits=integer("Credits (1-10): ");
+        if (!CourseValidation.isValidName(name) || !CourseValidation.isValidCredits(credits)) throw new IllegalArgumentException("Course name is required and credits must be between 1 and 10.");
+        courses.add(name, department, credits); System.out.println("Course added.");
+    }
+    private static void deleteStudent() throws SQLException {
+        int id=integer("Student ID: ");
+        if (!students.byId(id).isPresent()) { System.out.println("Student not found."); return; }
+        if (input("Delete student and all enrollments? (y/N): ").equalsIgnoreCase("y"))
+            System.out.println(students.delete(id)?"Deleted.":"Student not found.");
+        else System.out.println("Deletion cancelled.");
+    }
+    private static String input(String prompt){System.out.print(prompt);if(!in.hasNextLine())throw new IllegalArgumentException("Input ended.");return in.nextLine().trim();}
     private static int integer(String prompt){try{return Integer.parseInt(input(prompt));}catch(NumberFormatException e){throw new IllegalArgumentException("Expected an integer.");}}
     private static BigDecimal decimal(String prompt){try{return new BigDecimal(input(prompt));}catch(NumberFormatException e){throw new IllegalArgumentException("Expected a number.");}}
+    private static String defaultText(String label, String current) { String value=input(label+" ("+current+"): "); return value.isBlank()?current:value; }
+    private static int integerOrDefault(String label, int current) { String value=input(label+" ("+current+"): "); if(value.isBlank())return current; try{return Integer.parseInt(value);}catch(NumberFormatException e){throw new IllegalArgumentException("Expected an integer.");} }
+    private static BigDecimal decimalOrDefault(String label, BigDecimal current) { String value=input(label+" ("+current+"): "); if(value.isBlank())return current; try{return new BigDecimal(value);}catch(NumberFormatException e){throw new IllegalArgumentException("Expected a number.");} }
 }
