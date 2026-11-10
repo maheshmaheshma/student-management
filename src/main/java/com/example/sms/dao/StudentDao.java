@@ -39,7 +39,8 @@ public class StudentDao {
             p -> p.setString(1, "%" + courseName.trim() + "%"));
     }
     public List<Student> byDepartment(String dept) throws SQLException {
-        return query("SELECT * FROM students WHERE department ILIKE ? ORDER BY student_name", p->p.setString(1,dept));
+        if (dept == null || dept.isBlank()) return Collections.emptyList();
+        return query("SELECT * FROM students WHERE department ILIKE ? ORDER BY student_name", p->p.setString(1, "%" + dept.trim() + "%"));
     }
     public List<Student> byYear(int year) throws SQLException {
         return query("SELECT * FROM students WHERE student_year=? ORDER BY student_name", p->p.setInt(1,year));
