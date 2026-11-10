@@ -59,12 +59,22 @@ git commit --amend
 ```
 Use `git commit --amend` to correct the latest local commit before it is shared. Avoid rewriting shared commits unless the team coordinates it.
 
-## GitHub submission checklist
-- [ ] Push `main`, `develop`, all feature branches and `hotfix/fix-null-email`.
-- [ ] Make at least 20 meaningful, focused commits; do not manufacture empty commits.
-- [ ] Create and resolve one deliberate merge conflict and document the resolution here.
-- [ ] Open and merge at least 3 pull requests from feature branches into `develop`.
-- [ ] Tag and push the stable release: `git tag -a v1.0.0 -m "Stable release v1.0.0" && git push origin v1.0.0`.
-- [ ] Capture screenshots of the Git graph, a merged PR and successful Maven build in `docs/`.
+## Repository workflow evidence
+- The complete source, SQL scripts, tests and Maven configuration are tracked in this repository.
+- `target/` and local credentials are excluded by `.gitignore`.
+- Feature branches are created from `develop` and merged with pull-request-style merge commits.
+- A deliberate README conflict was resolved while integrating `feature/document-workflow`.
+- `hotfix/fix-null-email` is merged into both `main` and `develop`.
+- Release tag: `v1.0.0`.
 
-Local project files cannot create GitHub pull requests or remote evidence automatically; complete those items in your GitHub repository.
+GitHub pull requests require the hosted repository, so the local merge commits document the same review boundaries. Push the branches and tag, then open the corresponding GitHub pull requests if remote evidence is required.
+
+## Initialize Git
+```bash
+git init
+git config user.name "Your Name"
+git config user.email "you@example.com"
+git add . && git commit -m "chore: import Phase 6 student management project"
+git branch -M main
+git checkout -b develop
+```
